@@ -61,8 +61,10 @@ impl WorkspaceFile {
                 workspace_file.parent_shaders.borrow().iter().for_each(|(path, data)| {
                     if !new_parent_shaders.contains_key(path) {
                         match old_parent_shader.remove_entry(path) {
-                            Some((path, data)) => new_parent_shaders.insert_unique_unchecked(path, data),
-                            None => new_parent_shaders.insert_unique_unchecked(path.clone(), (data.0.clone(), RefCell::new(vec![]))),
+                            Some((path, data)) => unsafe { new_parent_shaders.insert_unique_unchecked(path, data) },
+                            None => unsafe {
+                                new_parent_shaders.insert_unique_unchecked(path.clone(), (data.0.clone(), RefCell::new(vec![])))
+                            },
                         };
                     }
                 })
@@ -157,30 +159,37 @@ impl WorkspaceFile {
                     let path = include_content.as_str();
                     match include_path_join(&pack_path.path, file_path, path) {
                         Ok(include_path) => {
-                            let (include_path, include_file) = if let Some((include_path, include_file)) =
-                                workspace_files.get_key_value(&include_path)
-                            {
-                                // File exists in workspace_files. If this is already included before modification, no need to update its includes.
-                                // If a file does not exist in workspace_files, then it's impossible to exists in old_including_files too.
-                                match old_including_files.remove_entry(include_path) {
-                                    Some(include) => include,
-                                    None => {
-                                        // Parent shader of self might get extended in previous include scan.
-                                        // And it might get changed if it includes it self in its include tree, so we should clone here.
-                                        let parent_shaders = workspace_file.parent_shaders.borrow().clone();
-                                        include_file.extend_shader_list(&parent_shaders, depth);
-                                        include_file
-                                            .included_files
-                                            .borrow_mut()
-                                            .insert(file_path.clone(), workspace_file.clone());
-                                        (include_path.clone(), include_file.clone())
+                            let (include_path, include_file) =
+                                if let Some((include_path, include_file)) = workspace_files.get_key_value(&include_path) {
+                                    // File exists in workspace_files. If this is already included before modification, no need to update its includes.
+                                    // If a file does not exist in workspace_files, then it's impossible to exists in old_including_files too.
+                                    match old_including_files.remove_entry(include_path) {
+                                        Some(include) => include,
+                                        None => {
+                                            // Parent shader of self might get extended in previous include scan.
+                                            // And it might get changed if it includes it self in its include tree, so we should clone here.
+                                            let parent_shaders = workspace_file.parent_shaders.borrow().clone();
+                                            include_file.extend_shader_list(&parent_shaders, depth);
+                                            include_file
+                                                .included_files
+                                                .borrow_mut()
+                                                .insert(file_path.clone(), workspace_file.clone());
+                                            (include_path.clone(), include_file.clone())
+                                        }
                                     }
-                                }
-                            } else if let Some(temp_file) = temp_files.remove(&include_path) {
-                                temp_file.into_workspace_file(workspace_files, temp_files, parser, include_path, file_path, workspace_file, depth)
-                            } else {
-                                Self::new_include(workspace_files, temp_files, parser, include_path, file_path, workspace_file, depth)
-                            };
+                                } else if let Some(temp_file) = temp_files.remove(&include_path) {
+                                    temp_file.into_workspace_file(
+                                        workspace_files,
+                                        temp_files,
+                                        parser,
+                                        include_path,
+                                        file_path,
+                                        workspace_file,
+                                        depth,
+                                    )
+                                } else {
+                                    Self::new_include(workspace_files, temp_files, parser, include_path, file_path, workspace_file, depth)
+                                };
                             let start_byte = include_content.start();
                             let start = unsafe { content.get_unchecked(..start_byte) }.chars().count();
                             let end = start + path.chars().count();
@@ -253,7 +262,7 @@ impl WorkspaceFile {
             shader_file.update_from_disc(parser, &shader_path);
             // Insert the shader file into workspace file list and takes the place.
             // Recursions in after call will only modify its included_files.
-            let (file_path, workspace_file) = workspace_files.insert_unique_unchecked(shader_path, shader_file);
+            let (file_path, workspace_file) = unsafe { workspace_files.insert_unique_unchecked(shader_path, shader_file) };
             (file_path.clone(), workspace_file as &Rc<WorkspaceFile>)
         };
 
@@ -294,7 +303,7 @@ impl WorkspaceFile {
             ),
         };
         // Safety: the only call of new_include() already make sure that workspace_files does not contain file_path.
-        let (file_path, include_file) = workspace_files.insert_unique_unchecked(Rc::new(file_path), Rc::new(include_file));
+        let (file_path, include_file) = unsafe { workspace_files.insert_unique_unchecked(Rc::new(file_path), Rc::new(include_file)) };
         let file_path = file_path.clone();
         let include_file = include_file.clone();
         if include_file.update_from_disc(parser, &file_path) && depth < 10 {

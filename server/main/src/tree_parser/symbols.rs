@@ -41,7 +41,7 @@ const SYMBOLS_QUERY_STR: &str = r#"
 "#;
 
 lazy_static! {
-    static ref SYMBOLS_QUERY: Query = Query::new(tree_sitter_glsl::language(), SYMBOLS_QUERY_STR).unwrap();
+    static ref SYMBOLS_QUERY: Query = Query::new(&tree_sitter_glsl::LANGUAGE_GLSL.into(), SYMBOLS_QUERY_STR).unwrap();
 }
 
 // This does not need unsafe code to create another reference
@@ -70,7 +70,7 @@ impl TreeParser {
                 None => continue,
             };
 
-            let capture_name = SYMBOLS_QUERY.capture_names()[capture.index as usize].as_str();
+            let capture_name = SYMBOLS_QUERY.capture_names()[capture.index as usize];
 
             let (kind, node) = match capture_name {
                 "const_qualifier" => (SymbolKind::CONSTANT, capture_iter.next().unwrap().node),

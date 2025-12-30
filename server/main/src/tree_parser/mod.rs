@@ -63,19 +63,21 @@ impl TreeParser {
     }
 
     fn simple_global_search(url: &Url, tree: &Tree, content: &str, query_str: &str, line_mapping: &[usize]) -> Vec<Location> {
-        let query = Query::new(tree_sitter_glsl::language(), query_str).unwrap();
+        let query = Query::new(&tree_sitter_glsl::LANGUAGE_GLSL.into(), query_str).unwrap();
         let mut query_cursor = QueryCursor::new();
 
         let mut locations = vec![];
 
-        for query_match in query_cursor.matches(&query, tree.root_node(), content.as_bytes()) {
-            locations.extend(
-                query_match
-                    .captures
-                    .iter()
-                    .map(|capture| capture.node.to_location(url, content, line_mapping)),
-            );
-        }
+        query_cursor
+            .matches(&query, tree.root_node(), content.as_bytes())
+            .for_each(|query_match| {
+                locations.extend(
+                    query_match
+                        .captures
+                        .iter()
+                        .map(|capture| capture.node.to_location(url, content, line_mapping)),
+                );
+            });
 
         locations
     }

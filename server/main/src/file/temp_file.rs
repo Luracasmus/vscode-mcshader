@@ -327,7 +327,7 @@ impl TempFile {
                     end_in_comment(0, comment_matches, &mut in_comment, &mut comment_type);
                     temp_content.push_str(content);
                 }
-            };
+            }
             temp_content.push('\n');
             true
         } else {
@@ -362,7 +362,7 @@ impl TempFile {
             ),
         });
         let file_path = Rc::new(file_path);
-        workspace_files.insert_unique_unchecked(file_path.clone(), workspace_file.clone());
+        unsafe { workspace_files.insert_unique_unchecked(file_path.clone(), workspace_file.clone()) };
 
         if depth < 10 {
             WorkspaceFile::parse_content(

@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::path::{Path, PathBuf, MAIN_SEPARATOR};
+use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Mutex;
@@ -50,7 +50,7 @@ pub struct ServerData {
 impl ServerData {
     pub fn new() -> Self {
         let mut tree_sitter_parser = Parser::new();
-        tree_sitter_parser.set_language(tree_sitter_glsl::language()).unwrap();
+        tree_sitter_parser.set_language(&tree_sitter_glsl::LANGUAGE_GLSL.into()).unwrap();
         ServerData {
             temp_lint: RefCell::new(false),
             extensions: RefCell::new(BASIC_EXTENSIONS.clone()),

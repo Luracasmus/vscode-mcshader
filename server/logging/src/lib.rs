@@ -1,4 +1,4 @@
-use rand::{rngs, Rng};
+use rand::{Rng, rngs};
 use slog_term::{FullFormat, PlainSyncDecorator};
 use std::cell::RefCell;
 
@@ -9,14 +9,14 @@ use slog::*;
 use slog_atomic::*;
 
 pub use logging_macro::*;
-pub use slog::{slog_o, FnValue, Key, Level, Record, Result, Serializer, Value};
-pub use slog_scope::{debug, error, info, logger, scope, trace, warn, GlobalLoggerGuard};
+pub use slog::{FnValue, Key, Level, Record, Result, Serializer, Value, slog_o};
+pub use slog_scope::{GlobalLoggerGuard, debug, error, info, logger, scope, trace, warn};
 pub use slog_scope_futures::FutureExt;
 
 type LoggerBase = Fuse<LevelFilter<Fuse<FullFormat<PlainSyncDecorator<Stderr>>>>>;
 
 pub fn new_trace_id() -> String {
-    let rng = CURRENT_RNG.with(|rng| rng.borrow_mut().gen::<[u8; 4]>());
+    let rng = CURRENT_RNG.with(|rng| rng.borrow_mut().random::<[u8; 4]>());
     format!("{:04x}", u32::from_be_bytes(rng))
 }
 

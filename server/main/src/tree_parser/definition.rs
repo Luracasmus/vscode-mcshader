@@ -44,7 +44,7 @@ impl TreeParser {
 
         let mut parent = start_node.parent();
 
-        let query = Query::new(tree_sitter_glsl::language(), &query_str).unwrap();
+        let query = Query::new(&tree_sitter_glsl::LANGUAGE_GLSL.into(), &query_str).unwrap();
         let mut query_cursor = QueryCursor::new();
         query_cursor.set_byte_range(0..start_node.end_byte());
 

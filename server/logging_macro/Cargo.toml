@@ -2,7 +2,7 @@
 name = "logging_macro"
 version = "0.9.8"
 authors = ["Noah Santschi-Cooney <noah@santschi-cooney.ch>"]
-edition = "2021"
+edition = "2024"
 
 [lib]
 proc-macro = true

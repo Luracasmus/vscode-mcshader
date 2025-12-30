@@ -98,7 +98,7 @@ impl MinecraftLanguageServer {
                                 .borrow_mut()
                                 .insert(file_path.clone(), (new_shader.clone(), RefCell::new(vec![])));
                             // We have ensured this file does not exists.
-                            let (file_path, new_file) = workspace_files.insert_unique_unchecked(file_path, new_shader);
+                            let (file_path, new_file) = unsafe { workspace_files.insert_unique_unchecked(file_path, new_shader) };
                             (file_path.clone(), new_file as &Rc<WorkspaceFile>)
                         } else {
                             continue;
