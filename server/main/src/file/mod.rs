@@ -1,8 +1,10 @@
+#![allow(deprecated)]
+
 use std::{
     cell::RefCell,
     ffi::OsString,
     fs::read_to_string,
-    path::{Component, Path, PathBuf, MAIN_SEPARATOR_STR},
+    path::{Component, MAIN_SEPARATOR_STR, Path, PathBuf},
     rc::Rc,
 };
 
@@ -100,7 +102,7 @@ fn push_str_without_ignored(
         let line_start = line_mapping[*line];
         shader_content.push_str(unsafe { file_content.get_unchecked(start_index..line_start) });
         match comment_type {
-            CommentType::None => {},
+            CommentType::None => {}
             CommentType::Single => shader_content.push_str(r"// \"),
             CommentType::Multi => shader_content.push_str(r"/*"),
         }
@@ -155,14 +157,14 @@ fn end_in_comment(index: usize, comment_matches: Matches<'_, '_>, in_comment: &m
                     *in_comment = true;
                     *comment_type = true;
                 }
-            },
+            }
             "*/" => {
                 *in_comment = false;
-            },
+            }
             "//" => {
                 // `//` would not make next line comment unless this line ends with `\`
                 *comment_type &= *in_comment;
-            },
+            }
             // `\$` for multi comment lines using `//`
             // This is the end of line so nothing left
             _ => {

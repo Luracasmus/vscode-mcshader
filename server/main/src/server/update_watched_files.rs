@@ -27,7 +27,7 @@ impl MinecraftLanguageServer {
                 // If a path is not watched through extension, it might be a folder
                 let is_watched_file = file_path
                     .extension()
-                    .map_or(false, |ext| extensions.contains(ext.to_str().unwrap()));
+                    .is_some_and(|ext| extensions.contains(ext.to_str().unwrap()));
                 // Folder handling is much more expensive than file handling
                 // Almost nobody will name a folder with watched extension, right?
                 if is_watched_file {

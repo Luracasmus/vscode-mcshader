@@ -1,4 +1,4 @@
-use std::path::{PathBuf, MAIN_SEPARATOR_STR};
+use std::path::PathBuf;
 
 use hashbrown::HashMap;
 
@@ -8,7 +8,7 @@ use super::*;
 
 impl Command for VirtualMerge {
     fn run(&self, arguments: &[Value], server_data: &MutexGuard<ServerData>) -> Result<Option<Value>> {
-        let value = arguments.get(0).unwrap();
+        let value = arguments.first().unwrap();
         let file_uri = match value.as_str() {
             Some(uri) => uri,
             None => return Err(LanguageServerError::invalid_argument_error()),

@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use std::cell::RefCell;
 use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 use std::rc::Rc;

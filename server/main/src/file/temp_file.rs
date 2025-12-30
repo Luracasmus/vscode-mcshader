@@ -52,7 +52,7 @@ impl TempFile {
         let debug = pack_path
             .parent()
             .and_then(|parent| parent.file_name())
-            .map_or(false, |name| name == "debug");
+            .is_some_and(|name| name == "debug");
 
         let temp_file = TempFile {
             file_type: RefCell::new(file_type),

@@ -4,11 +4,11 @@ impl MinecraftLanguageServer {
     pub(super) fn collect_memory(&self, workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>) {
         workspace_files.retain(|_file_path, workspace_file| {
             // Only delete file that both do not exist and no file includes it.
-            *workspace_file.file_type().borrow() != gl::INVALID_ENUM || workspace_file.included_files().borrow().len() > 0
+            *workspace_file.file_type().borrow() != gl::INVALID_ENUM || !workspace_file.included_files().borrow().is_empty()
         });
     }
 
-    pub(super) fn is_valid_shader<'a>(&'a self, shader_packs: &'a HashSet<Rc<ShaderPack>>, file_path: &Path) -> Option<&Rc<ShaderPack>> {
+    pub(super) fn is_valid_shader<'a>(&'a self, shader_packs: &'a HashSet<Rc<ShaderPack>>, file_path: &Path) -> Option<&'a Rc<ShaderPack>> {
         for shader_pack in shader_packs {
             if let Ok(relative_path) = file_path.strip_prefix(&shader_pack.path) {
                 let relative_path = relative_path.to_str().unwrap();
@@ -32,12 +32,9 @@ impl MinecraftLanguageServer {
             let debug = curr_path
                 .parent()
                 .and_then(|parent| parent.file_name())
-                .map_or(false, |name| name == "debug");
+                .is_some_and(|name| name == "debug");
             shader_packs.push(Rc::new(ShaderPack { path: curr_path, debug }));
-        } else if file_name
-            .to_str()
-            .map_or(true, |name| !name.starts_with('.') || name == ".minecraft")
-        {
+        } else if file_name.to_str().is_none_or(|name| !name.starts_with('.') || name == ".minecraft") {
             if let Ok(dir) = curr_path.read_dir() {
                 dir.filter_map(|file| file.ok())
                     .filter(|file| file.file_type().unwrap().is_dir())

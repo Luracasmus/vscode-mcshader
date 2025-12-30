@@ -1,6 +1,6 @@
 use hashbrown::HashSet;
 use serde::Deserialize;
-use serde_json::{from_value, Value};
+use serde_json::{Value, from_value};
 use tower_lsp::lsp_types::*;
 
 #[derive(Deserialize)]

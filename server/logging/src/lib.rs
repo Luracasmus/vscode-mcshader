@@ -9,7 +9,7 @@ use slog::*;
 use slog_atomic::*;
 
 pub use logging_macro::*;
-pub use slog::{FnValue, Key, Level, Record, Result, Serializer, Value, slog_o};
+pub use slog::{FnValue, Key, Level, Record, Result, Serializer, Value, o};
 pub use slog_scope::{GlobalLoggerGuard, debug, error, info, logger, scope, trace, warn};
 pub use slog_scope_futures::FutureExt;
 

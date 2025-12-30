@@ -13,7 +13,7 @@ impl MinecraftLanguageServer {
 
         let diagnostics = if let Some((file_path, workspace_file)) = workspace_files.get_key_value(&file_path) {
             // If this file is ended with watched extension, it should get updated through update_watched_files
-            if file_path.extension().map_or(true, |ext| extensions.contains(ext.to_str().unwrap())) {
+            if file_path.extension().is_none_or(|ext| extensions.contains(ext.to_str().unwrap())) {
                 return None;
             }
             workspace_file.update_from_disc(&mut parser, file_path);
