@@ -3,7 +3,7 @@ use std::{collections::hash_map::DefaultHasher, hash::Hasher};
 use super::*;
 
 impl CompileCache {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self { index: 0, cache: [0; 8] }
     }
 

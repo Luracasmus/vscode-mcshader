@@ -1,19 +1,19 @@
 use super::*;
 
 impl WorkspaceFile {
-    pub fn shader_pack(&self) -> &Rc<ShaderPack> {
+    pub const fn shader_pack(&self) -> &Rc<ShaderPack> {
         &self.shader_pack
     }
 
-    pub fn included_files(&self) -> &RefCell<HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>> {
+    pub const fn included_files(&self) -> &RefCell<HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>> {
         &self.included_files
     }
 
-    pub fn parent_shaders(&self) -> &RefCell<HashMap<Rc<PathBuf>, ShaderData>> {
+    pub const fn parent_shaders(&self) -> &RefCell<HashMap<Rc<PathBuf>, ShaderData>> {
         &self.parent_shaders
     }
 
-    pub fn including_files(&self) -> &RefCell<Vec<IncludeInformation>> {
+    pub const fn including_files(&self) -> &RefCell<Vec<IncludeInformation>> {
         &self.including_files
     }
 

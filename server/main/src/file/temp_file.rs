@@ -1,7 +1,7 @@
 use super::*;
 
 impl TempFile {
-    pub fn shader_pack(&self) -> &ShaderPack {
+    pub const fn shader_pack(&self) -> &ShaderPack {
         &self.shader_pack
     }
 

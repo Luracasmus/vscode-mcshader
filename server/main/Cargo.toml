@@ -24,3 +24,6 @@ logging = { path = "../logging" }
 logging_macro = { path = "../logging_macro" }
 
 [dev-dependencies]
+
+[lints.clippy]
+missing_const_for_fn = "warn"

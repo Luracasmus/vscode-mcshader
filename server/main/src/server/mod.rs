@@ -63,11 +63,11 @@ impl ServerData {
         }
     }
 
-    pub fn workspace_files(&self) -> &RefCell<HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>> {
+    pub const fn workspace_files(&self) -> &RefCell<HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>> {
         &self.workspace_files
     }
 
-    pub fn temp_files(&self) -> &RefCell<HashMap<PathBuf, TempFile>> {
+    pub const fn temp_files(&self) -> &RefCell<HashMap<PathBuf, TempFile>> {
         &self.temp_files
     }
 }
