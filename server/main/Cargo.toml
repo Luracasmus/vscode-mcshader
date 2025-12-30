@@ -7,7 +7,7 @@ rust-version = "1.85.1" # from tower-lsp
 
 [dependencies]
 gl = "0.14"
-glutin = "0.29"
+glutin = { version = "0.29", default-features = false, features = ["x11", "wayland", "wayland-dlopen"] }
 hashbrown = { version = "0.16", features = ["default", "serde"]}
 itoa = "1.0"
 lazy_static = "1.5"
