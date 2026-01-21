@@ -41,7 +41,7 @@ pub static DIAGNOSTICS_REGEX: LazyLock<Regex> = LazyLock::new(|| {
         #[cfg(target_os = "linux")]
         "AMD" => Regex::new(
             // We assume RadeonSI.
-            r"^(?P<filepath>\d+)\:(?P<linenum>\d+)\(\d+\): (?P<severity>error|warning): (?P<output>.+)",
+            r"^(?P<filepath>\d+)\:(?P<linenum>\d+)\((?P<lineoffset>\d+)\): (?P<severity>error|warning): (?P<output>.+)",
         ),
         _ => Regex::new(
             r#"^(?P<severity>ERROR|WARNING): (?P<filepath>[^?<>*|"\n]+):(?P<linenum>\d+): (?:'.*' :|[a-z]+\(#\d+\)) +(?P<output>.+)$"#,

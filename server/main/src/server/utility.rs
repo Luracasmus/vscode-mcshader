@@ -144,6 +144,25 @@ impl MinecraftLanguageServer {
                         .map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0))
                         .saturating_sub(offset);
 
+                    let (line_offset, line_end) = if let Some(shader_line) = shader_content.lines().nth(line as usize) {
+                        let line_offset = captures.name("lineoffset").map_or(0, |c| {
+                            c.as_str().parse::<u32>().map_or(0, |line_offset| {
+                                shader_line
+                                    .get(..(line_offset - 1) as usize)
+                                    .map_or(0, |slice| slice.encode_utf16().count() as u32)
+                            })
+                        });
+
+                        let line_end = shader_line
+                            .find("//")
+                            .or_else(|| shader_line.find("/*"))
+                            .map_or(u32::MAX, |code_end| shader_line[..=code_end].encode_utf16().count() as u32);
+
+                        (line_offset, line_end)
+                    } else {
+                        (0, u32::MAX)
+                    };
+
                     let severity =
                         captures
                             .name("severity")
@@ -155,8 +174,11 @@ impl MinecraftLanguageServer {
 
                     let diagnostic = Diagnostic {
                         range: Range {
-                            start: Position { line, character: 0 },
-                            end: Position { line, character: u32::MAX },
+                            start: Position {
+                                line,
+                                character: line_offset,
+                            },
+                            end: Position { line, character: line_end },
                         },
                         severity: Some(severity),
                         source: Some("mcshader-glsl".to_owned()),
@@ -220,6 +242,25 @@ impl MinecraftLanguageServer {
                             .map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0))
                             .saturating_sub(offset);
 
+                        let (line_offset, line_end) = if let Some(shader_line) = source.lines().nth(line as usize) {
+                            let line_offset = captures.name("lineoffset").map_or(0, |c| {
+                                c.as_str().parse::<u32>().map_or(0, |line_offset| {
+                                    shader_line
+                                        .get(..(line_offset - 1) as usize)
+                                        .map_or(0, |slice| slice.encode_utf16().count() as u32)
+                                })
+                            });
+
+                            let line_end = shader_line
+                                .find("//")
+                                .or_else(|| shader_line.find("/*"))
+                                .map_or(u32::MAX, |code_end| shader_line[..=code_end].encode_utf16().count() as u32);
+
+                            (line_offset, line_end)
+                        } else {
+                            (0, u32::MAX)
+                        };
+
                         let severity = captures.name("severity").map_or(DiagnosticSeverity::INFORMATION, |c| {
                             match c.as_str().to_lowercase().as_str() {
                                 "error" => DiagnosticSeverity::ERROR,
@@ -230,8 +271,11 @@ impl MinecraftLanguageServer {
 
                         Diagnostic {
                             range: Range {
-                                start: Position { line, character: 0 },
-                                end: Position { line, character: u32::MAX },
+                                start: Position {
+                                    line,
+                                    character: line_offset,
+                                },
+                                end: Position { line, character: line_end },
                             },
                             severity: Some(severity),
                             source: Some("mcshader-glsl".to_owned()),
