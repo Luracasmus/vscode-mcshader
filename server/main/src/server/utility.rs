@@ -139,7 +139,10 @@ impl MinecraftLanguageServer {
                     let mut msg = captures.name("output").unwrap().as_str().to_owned() + ", from file: ";
                     msg += shader_path_str;
 
-                    let line = captures.name("linenum").map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0)) - offset;
+                    let line = captures
+                        .name("linenum")
+                        .map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0))
+                        .saturating_sub(offset);
 
                     let severity =
                         captures
@@ -212,7 +215,10 @@ impl MinecraftLanguageServer {
                     .map(|captures| {
                         let msg = captures.name("output").unwrap().as_str().to_owned();
 
-                        let line = captures.name("linenum").map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0)) - offset;
+                        let line = captures
+                            .name("linenum")
+                            .map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0))
+                            .saturating_sub(offset);
 
                         let severity = captures.name("severity").map_or(DiagnosticSeverity::INFORMATION, |c| {
                             match c.as_str().to_lowercase().as_str() {
