@@ -144,19 +144,20 @@ impl MinecraftLanguageServer {
                         .map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0))
                         .saturating_sub(offset);
 
-                    let (line_offset, line_end) = if let Some(shader_line) = shader_content.lines().nth(line as usize) {
+                    let (line_offset, line_end) = if let Some(shader_line) = shader_file.0.content().borrow().lines().nth(line as usize) {
                         let line_offset = captures.name("lineoffset").map_or(0, |c| {
                             c.as_str().parse::<u32>().map_or(0, |line_offset| {
                                 shader_line
-                                    .get(..(line_offset - 1) as usize)
+                                    .get(..(line_offset as usize))
                                     .map_or(0, |slice| slice.encode_utf16().count() as u32)
                             })
                         });
 
                         let line_end = shader_line
-                            .find("//")
-                            .or_else(|| shader_line.find("/*"))
-                            .map_or(u32::MAX, |code_end| shader_line[..=code_end].encode_utf16().count() as u32);
+                            .split_once("//")
+                            .map(|(prefix, _)| prefix)
+                            .or_else(|| shader_line.split_once("/*").map(|(prefix, _)| prefix))
+                            .map_or(u32::MAX, |prefix| prefix.trim_end().encode_utf16().count() as u32);
 
                         (line_offset, line_end)
                     } else {
@@ -242,19 +243,20 @@ impl MinecraftLanguageServer {
                             .map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0))
                             .saturating_sub(offset);
 
-                        let (line_offset, line_end) = if let Some(shader_line) = source.lines().nth(line as usize) {
+                        let (line_offset, line_end) = if let Some(shader_line) = temp_file.content().borrow().lines().nth(line as usize) {
                             let line_offset = captures.name("lineoffset").map_or(0, |c| {
                                 c.as_str().parse::<u32>().map_or(0, |line_offset| {
                                     shader_line
-                                        .get(..(line_offset - 1) as usize)
+                                        .get(..(line_offset as usize))
                                         .map_or(0, |slice| slice.encode_utf16().count() as u32)
                                 })
                             });
 
                             let line_end = shader_line
-                                .find("//")
-                                .or_else(|| shader_line.find("/*"))
-                                .map_or(u32::MAX, |code_end| shader_line[..=code_end].encode_utf16().count() as u32);
+                                .split_once("//")
+                                .map(|(prefix, _)| prefix)
+                                .or_else(|| shader_line.split_once("/*").map(|(prefix, _)| prefix))
+                                .map_or(u32::MAX, |prefix| prefix.trim_end().encode_utf16().count() as u32);
 
                             (line_offset, line_end)
                         } else {
