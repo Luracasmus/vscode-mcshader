@@ -3,7 +3,7 @@ use serde::Deserialize;
 use serde_json::{Value, from_value};
 use tower_lsp::lsp_types::*;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone, PartialEq, Eq)]
 pub struct Configuration {
     #[serde(alias = "logLevel")]
     pub log_level: Box<str>,

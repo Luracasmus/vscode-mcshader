@@ -24,7 +24,7 @@ impl Command for VirtualMerge {
 
         let content = if let Some((file_path, workspace_file)) = workspace_files.get_key_value(&file_path) {
             match *workspace_file.file_type().borrow() {
-                gl::NONE | gl::INVALID_ENUM => return Err(LanguageServerError::not_shader_error()),
+                FileType::None | FileType::Invalid => return Err(LanguageServerError::not_shader_error()),
                 _ => {
                     let mut content = String::new();
                     let mut version = String::new();

@@ -1,5 +1,3 @@
-#![allow(deprecated)]
-
 use std::{
     cell::RefCell,
     ffi::OsString,
@@ -8,6 +6,7 @@ use std::{
     rc::Rc,
 };
 
+use glslang::ShaderStage;
 use hashbrown::HashMap;
 use itoa::Buffer;
 use logging::{error, warn};
@@ -25,6 +24,7 @@ pub type IncludeInformation = (usize, usize, usize, Rc<PathBuf>, Rc<WorkspaceFil
 pub type ShaderData = (Rc<WorkspaceFile>, RefCell<Vec<Diagnostic>>);
 
 /// Used to store comment type of multi line comments for ignored lines
+#[derive(Clone, Copy, Eq, PartialEq, Hash)]
 enum CommentType {
     None,
     Single,
@@ -98,7 +98,7 @@ fn push_str_without_ignored(
             break;
         }
         let line_start = line_mapping[*line];
-        shader_content.push_str(unsafe { file_content.get_unchecked(start_index..line_start) });
+        shader_content.push_str(&file_content[start_index..line_start]);
         match comment_type {
             CommentType::None => {}
             CommentType::Single => shader_content.push_str(r"// \"),
@@ -106,7 +106,7 @@ fn push_str_without_ignored(
         }
         start_index = line_mapping[*line + 1] - 1;
     }
-    shader_content.push_str(unsafe { file_content.get_unchecked(start_index..end_index) });
+    shader_content.push_str(&file_content[start_index..end_index]);
 }
 
 #[must_use]
@@ -119,7 +119,7 @@ fn byte_offset(content: &str, chars: usize) -> usize {
 #[must_use]
 pub fn byte_index(content: &str, position: Position, line_mapping: &[usize]) -> (usize, usize) {
     let line_start = line_mapping[position.line as usize];
-    let rest_content = unsafe { content.get_unchecked(line_start..) };
+    let rest_content = &content[line_start..];
     let line_offset = byte_offset(rest_content, position.character as usize);
     (line_start + line_offset, line_offset)
 }
@@ -180,8 +180,24 @@ pub fn preprocess_shader(shader_content: &mut String, mut version: String, is_de
     offset
 }
 
+#[derive(Copy, Clone, Hash, PartialEq, Eq)]
+pub enum FileType {
+    None,
+    Invalid,
+    Shader(ShaderStage),
+}
+
+impl FileType {
+    #[must_use]
+    pub const fn to_shader_stage(self) -> ShaderStage {
+        let Self::Shader(shader_stage) = self else { panic!() };
+
+        shader_stage
+    }
+}
+
 pub trait ShaderFile {
-    fn file_type(&self) -> &RefCell<u32>;
+    fn file_type(&self) -> &RefCell<FileType>;
     fn content(&self) -> &RefCell<String>;
     fn cache(&self) -> &RefCell<Option<CompileCache>>;
     fn tree(&self) -> &RefCell<Tree>;
@@ -254,14 +270,16 @@ pub trait ShaderFile {
     }
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct CompileCache {
     index: u8,
     cache: [u64; 8],
 }
 
+#[derive(Clone)]
 pub struct WorkspaceFile {
     /// Type of the shader
-    file_type: RefCell<u32>,
+    file_type: RefCell<FileType>,
     /// The shader pack path that this file in
     shader_pack: Rc<ShaderPack>,
     /// Live content for this file
@@ -288,9 +306,10 @@ pub struct WorkspaceFile {
     parent_shaders: RefCell<HashMap<Rc<PathBuf>, ShaderData>>,
 }
 
+#[derive(Clone)]
 pub struct TempFile {
     /// Type of the shader
-    file_type: RefCell<u32>,
+    file_type: RefCell<FileType>,
     /// The shader pack path that this file in
     shader_pack: ShaderPack,
     /// Live content for this file
@@ -313,18 +332,21 @@ pub struct TempFile {
     including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,
 }
 
+#[derive(Clone)]
 pub struct ShaderPack {
     pub path: PathBuf,
     pub debug: bool,
 }
 
 impl core::hash::Hash for ShaderPack {
+    #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.path.hash(state);
     }
 }
 
 impl PartialEq for ShaderPack {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.path == other.path
     }

@@ -1,3 +1,5 @@
+use glslang::ShaderStage;
+
 use super::*;
 
 impl TempFile {
@@ -9,15 +11,15 @@ impl TempFile {
 
     pub fn new(parser: &mut Parser, file_path: &Path, content: String) -> Self {
         warn!("Document not found in file system"; "path" => file_path.to_str().unwrap());
-        let mut file_type = match file_path.extension() {
-            Some(ext) if ext == "csh" => gl::COMPUTE_SHADER,
-            Some(ext) if ext == "vsh" => gl::VERTEX_SHADER,
-            Some(ext) if ext == "gsh" => gl::GEOMETRY_SHADER,
-            Some(ext) if ext == "fsh" => gl::FRAGMENT_SHADER,
-            Some(ext) if ext == "tcs" => gl::TESS_CONTROL_SHADER,
-            Some(ext) if ext == "tes" => gl::TESS_EVALUATION_SHADER,
+        let mut file_type = FileType::Shader(match file_path.extension() {
+            Some(ext) if ext == "csh" => ShaderStage::Compute,
+            Some(ext) if ext == "vsh" => ShaderStage::Vertex,
+            Some(ext) if ext == "gsh" => ShaderStage::Geometry,
+            Some(ext) if ext == "fsh" => ShaderStage::Fragment,
+            Some(ext) if ext == "tcs" => ShaderStage::TesselationControl,
+            Some(ext) if ext == "tes" => ShaderStage::TesselationEvaluation,
             _ => unreachable!(),
-        };
+        });
 
         let mut buffer = file_path.components();
         loop {
@@ -26,14 +28,14 @@ impl TempFile {
                     break;
                 }
             } else {
-                file_type = gl::INVALID_ENUM;
+                file_type = FileType::Invalid;
                 break;
             }
         }
 
         let mut resource = OsString::new();
         let mut cache = None;
-        if file_type != gl::INVALID_ENUM {
+        if file_type != FileType::Invalid {
             for component in buffer {
                 resource.push(component);
                 match component {
@@ -42,7 +44,7 @@ impl TempFile {
                 }
             }
             resource.push("shaders");
-            if file_type != gl::NONE {
+            if file_type != FileType::None {
                 cache = Some(CompileCache::new());
             }
         }
@@ -73,7 +75,7 @@ impl TempFile {
     }
 
     pub fn parse_includes(&self, file_path: &Path) {
-        if *self.file_type.borrow() == gl::INVALID_ENUM {
+        if *self.file_type.borrow() == FileType::Invalid {
             return;
         }
         let pack_path = &self.shader_pack.path;
@@ -142,8 +144,8 @@ impl TempFile {
                 let line_content = captures.get(0).unwrap().as_str();
                 let start_byte = include_content.start();
                 let end_byte = include_content.end();
-                let start = unsafe { line_content.get_unchecked(..start_byte) }.chars().count();
-                let end = start + unsafe { line_content.get_unchecked(start_byte..end_byte) }.chars().count();
+                let start = line_content[..start_byte].chars().count();
+                let end = start + line_content[start_byte..end_byte].chars().count();
 
                 if captures.get(2).unwrap().as_str() == "include" {
                     match include_path_join(pack_path, file_path, path) {
@@ -168,7 +170,7 @@ impl TempFile {
     #[must_use]
     pub fn merge_self(&self, file_path: &Path) -> Option<(String, String)> {
         let file_type = *self.file_type.borrow();
-        if file_type == gl::NONE || file_type == gl::INVALID_ENUM {
+        if file_type == FileType::None || file_type == FileType::Invalid {
             return None;
         }
 
@@ -186,9 +188,11 @@ impl TempFile {
         let including_files = self.including_files.borrow();
         let mut start_index = 0;
 
-        let mut version = self.version.borrow().as_ref().map_or(String::new(), |(start, end)| unsafe {
-            content.get_unchecked(*start..*end).to_owned()
-        });
+        let mut version = self
+            .version
+            .borrow()
+            .as_ref()
+            .map_or(String::new(), |(start, end)| content[*start..*end].to_owned());
 
         for (line, _start, _end, include_path) in including_files.iter() {
             let start = line_mapping.get(*line).unwrap();
@@ -215,7 +219,7 @@ impl TempFile {
             ) {
                 push_line_macro(&mut temp_content, line + 2, "0", file_name);
             } else {
-                temp_content.push_str(unsafe { content.get_unchecked(*start..start_index) });
+                temp_content.push_str(&content[*start..start_index]);
             }
         }
         push_str_without_ignored(
@@ -343,7 +347,7 @@ impl TempFile {
         file_path: PathBuf, parent_path: &Rc<PathBuf>, parent_file: &Rc<WorkspaceFile>, depth: i32,
     ) -> (Rc<PathBuf>, Rc<WorkspaceFile>) {
         let workspace_file = Rc::new(WorkspaceFile {
-            file_type: RefCell::new(gl::NONE),
+            file_type: RefCell::new(FileType::None),
             shader_pack: parent_file.shader_pack.clone(),
             content: self.content,
             version: RefCell::new(None),
@@ -382,7 +386,7 @@ impl TempFile {
 
 impl ShaderFile for TempFile {
     #[inline]
-    fn file_type(&self) -> &RefCell<u32> {
+    fn file_type(&self) -> &RefCell<FileType> {
         &self.file_type
     }
 

@@ -1,3 +1,5 @@
+use glslang::ShaderStage;
+
 use super::*;
 
 impl MinecraftLanguageServer {
@@ -62,12 +64,12 @@ impl MinecraftLanguageServer {
             } else {
                 let is_valid_shader = self.is_valid_shader(&shader_packs, &file_path).map(|pack_path| {
                     let shader_type = match file_path.extension() {
-                        Some(ext) if ext == "csh" => gl::COMPUTE_SHADER,
-                        Some(ext) if ext == "vsh" => gl::VERTEX_SHADER,
-                        Some(ext) if ext == "gsh" => gl::GEOMETRY_SHADER,
-                        Some(ext) if ext == "fsh" => gl::FRAGMENT_SHADER,
-                        Some(ext) if ext == "tcs" => gl::TESS_CONTROL_SHADER,
-                        Some(ext) if ext == "tes" => gl::TESS_EVALUATION_SHADER,
+                        Some(ext) if ext == "csh" => ShaderStage::Compute,
+                        Some(ext) if ext == "vsh" => ShaderStage::Vertex,
+                        Some(ext) if ext == "gsh" => ShaderStage::Geometry,
+                        Some(ext) if ext == "fsh" => ShaderStage::Fragment,
+                        Some(ext) if ext == "tcs" => ShaderStage::TesselationControl,
+                        Some(ext) if ext == "tes" => ShaderStage::TesselationEvaluation,
                         // This will never be used since we have ensured the extension through basic shaders regex.
                         _ => unreachable!(),
                     };
@@ -76,15 +78,15 @@ impl MinecraftLanguageServer {
                 let (file_path, workspace_file) = match workspace_files.get_key_value(&file_path) {
                     Some((file_path, changed_file)) => {
                         let mut file_type = changed_file.file_type().borrow_mut();
-                        if *file_type == gl::INVALID_ENUM {
+                        if *file_type == FileType::Invalid {
                             if let Some((_, shader_type)) = is_valid_shader {
                                 changed_file
                                     .parent_shaders()
                                     .borrow_mut()
                                     .insert(file_path.clone(), (changed_file.clone(), RefCell::new(vec![])));
-                                *file_type = shader_type;
+                                *file_type = FileType::Shader(shader_type);
                             } else {
-                                *file_type = gl::NONE;
+                                *file_type = FileType::None;
                             }
                         }
                         (file_path.clone(), changed_file)

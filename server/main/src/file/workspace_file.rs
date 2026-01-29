@@ -1,3 +1,5 @@
+use glslang::ShaderStage;
+
 use super::*;
 
 impl WorkspaceFile {
@@ -17,9 +19,9 @@ impl WorkspaceFile {
         &self.including_files
     }
 
-    pub fn new(parser: &mut Parser, file_type: u32, pack_path: &Rc<ShaderPack>) -> Self {
+    pub fn new(parser: &mut Parser, file_type: ShaderStage, pack_path: &Rc<ShaderPack>) -> Self {
         Self {
-            file_type: RefCell::new(file_type),
+            file_type: RefCell::new(FileType::Shader(file_type)),
             shader_pack: pack_path.clone(),
             content: RefCell::new(String::new()),
             version: RefCell::new(None),
@@ -190,7 +192,7 @@ impl WorkspaceFile {
                                     Self::new_include(workspace_files, temp_files, parser, include_path, file_path, workspace_file, depth)
                                 };
                             let start_byte = include_content.start();
-                            let start = unsafe { content.get_unchecked(..start_byte) }.chars().count();
+                            let start = content[..start_byte].chars().count();
                             let end = start + path.chars().count();
                             including_files.push((line, start, end, include_path, include_file));
                         }
@@ -216,21 +218,21 @@ impl WorkspaceFile {
         workspace_files: &mut HashMap<Rc<PathBuf>, Rc<Self>>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
         pack_path: &Rc<ShaderPack>, file_path: PathBuf,
     ) {
-        let file_type = match file_path.extension() {
-            Some(ext) if ext == "csh" => gl::COMPUTE_SHADER,
-            Some(ext) if ext == "vsh" => gl::VERTEX_SHADER,
-            Some(ext) if ext == "gsh" => gl::GEOMETRY_SHADER,
-            Some(ext) if ext == "fsh" => gl::FRAGMENT_SHADER,
-            Some(ext) if ext == "tcs" => gl::TESS_CONTROL_SHADER,
-            Some(ext) if ext == "tes" => gl::TESS_EVALUATION_SHADER,
+        let shader_stage = match file_path.extension() {
+            Some(ext) if ext == "csh" => ShaderStage::Compute,
+            Some(ext) if ext == "vsh" => ShaderStage::Vertex,
+            Some(ext) if ext == "gsh" => ShaderStage::Geometry,
+            Some(ext) if ext == "fsh" => ShaderStage::Fragment,
+            Some(ext) if ext == "tcs" => ShaderStage::TesselationControl,
+            Some(ext) if ext == "tes" => ShaderStage::TesselationEvaluation,
             // This will never be used since we have ensured the extension through basic shaders regex.
             _ => unreachable!(),
         };
         let (file_path, workspace_file) = if let Some((file_path, workspace_file)) = workspace_files.get_key_value(&file_path) {
             // Existing as some file's include
             let mut existing_file_type = workspace_file.file_type.borrow_mut();
-            let scanned = *existing_file_type != gl::INVALID_ENUM;
-            *existing_file_type = file_type;
+            let scanned = *existing_file_type != FileType::Invalid;
+            *existing_file_type = FileType::Shader(shader_stage);
             *workspace_file.cache.borrow_mut() = Some(CompileCache::new());
 
             // File already scanned. Just change its type to shaders.
@@ -247,7 +249,7 @@ impl WorkspaceFile {
         } else {
             let shader_path = Rc::new(file_path);
             let shader_file = Rc::new(Self {
-                file_type: RefCell::new(file_type),
+                file_type: RefCell::new(FileType::Shader(shader_stage)),
                 shader_pack: pack_path.clone(),
                 content: RefCell::new(String::new()),
                 version: RefCell::new(None),
@@ -284,7 +286,7 @@ impl WorkspaceFile {
         file_path: PathBuf, parent_path: &Rc<PathBuf>, parent_file: &Rc<Self>, depth: i32,
     ) -> (Rc<PathBuf>, Rc<Self>) {
         let include_file = Self {
-            file_type: RefCell::new(gl::NONE),
+            file_type: RefCell::new(FileType::None),
             shader_pack: parent_file.shader_pack.clone(),
             content: RefCell::new(String::new()),
             version: RefCell::new(None),
@@ -319,7 +321,7 @@ impl WorkspaceFile {
                 depth + 1,
             );
         } else {
-            *include_file.file_type.borrow_mut() = gl::INVALID_ENUM;
+            *include_file.file_type.borrow_mut() = FileType::Invalid;
             error!("Include file {} not found in workspace!", file_path.to_str().unwrap());
         }
         (file_path, include_file)
@@ -349,7 +351,7 @@ impl WorkspaceFile {
         if let Some((start, end)) = self.version.borrow().as_ref()
             && version.is_empty()
         {
-            *version = unsafe { content.get_unchecked(*start..*end).to_owned() };
+            *version = content[*start..*end].to_owned();
         }
 
         if depth < 10 {
@@ -357,7 +359,7 @@ impl WorkspaceFile {
             let including_files = self.including_files.borrow();
             including_files
                 .iter()
-                .filter(|(_, _, _, _, include_file)| *include_file.file_type.borrow() != gl::INVALID_ENUM)
+                .filter(|(_, _, _, _, include_file)| *include_file.file_type.borrow() != FileType::Invalid)
                 .for_each(|(line, _, _, include_path, include_file)| {
                     let start = line_mapping.get(*line).unwrap();
                     let end = line_mapping.get(line + 1).unwrap();
@@ -390,7 +392,7 @@ impl WorkspaceFile {
     }
 
     pub fn clear(&self, parser: &mut Parser, file_path: &PathBuf, update_list: &mut HashMap<Rc<PathBuf>, Rc<Self>>) {
-        *self.file_type.borrow_mut() = gl::INVALID_ENUM;
+        *self.file_type.borrow_mut() = FileType::Invalid;
         self.content.borrow_mut().clear();
         *self.version.borrow_mut() = None;
         *self.tree.borrow_mut() = parser.parse("", None).unwrap();
@@ -426,22 +428,27 @@ impl WorkspaceFile {
 }
 
 impl ShaderFile for WorkspaceFile {
-    fn file_type(&self) -> &RefCell<u32> {
+    #[inline]
+    fn file_type(&self) -> &RefCell<FileType> {
         &self.file_type
     }
 
+    #[inline]
     fn content(&self) -> &RefCell<String> {
         &self.content
     }
 
+    #[inline]
     fn cache(&self) -> &RefCell<Option<CompileCache>> {
         &self.cache
     }
 
+    #[inline]
     fn tree(&self) -> &RefCell<Tree> {
         &self.tree
     }
 
+    #[inline]
     fn line_mapping(&self) -> &RefCell<Vec<usize>> {
         &self.line_mapping
     }

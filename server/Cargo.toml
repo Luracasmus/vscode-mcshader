@@ -4,6 +4,11 @@ members = [
 ]
 resolver = "2"
 
+[workspace.package]
+edition = "2024"
+rust-version = "1.93.0"
+repository = "https://github.com/GeForceLegend/vscode-mcshader"
+
 [profile.release]
 lto = "thin"
 strip = "symbols"

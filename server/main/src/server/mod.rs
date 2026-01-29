@@ -1,5 +1,3 @@
-#![allow(deprecated)]
-
 use std::cell::RefCell;
 use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 use std::rc::Rc;
@@ -39,7 +37,7 @@ use crate::tree_parser::TreeParser;
 pub type Diagnostics = HashMap<Url, Vec<Diagnostic>>;
 
 /// Everything mutable in this struct.
-/// By sending the Mutex of server data to snyc functions, we can handle it like single thread
+/// By sending the Mutex of server data to sync functions, we can handle it like single thread
 pub struct ServerData {
     temp_lint: RefCell<bool>,
     extensions: RefCell<HashSet<Box<str>>>,
@@ -50,6 +48,7 @@ pub struct ServerData {
 }
 
 impl ServerData {
+    #[must_use]
     pub fn new() -> Self {
         let mut tree_sitter_parser = Parser::new();
         tree_sitter_parser.set_language(&tree_sitter_glsl::LANGUAGE_GLSL.into()).unwrap();
@@ -63,10 +62,14 @@ impl ServerData {
         }
     }
 
+    #[inline]
+    #[must_use]
     pub const fn workspace_files(&self) -> &RefCell<HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>> {
         &self.workspace_files
     }
 
+    #[inline]
+    #[must_use]
     pub const fn temp_files(&self) -> &RefCell<HashMap<PathBuf, TempFile>> {
         &self.temp_files
     }
@@ -82,9 +85,11 @@ pub struct MinecraftLanguageServer {
     _log_guard: logging::GlobalLoggerGuard,
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub struct LanguageServerError;
 
 impl MinecraftLanguageServer {
+    #[must_use]
     pub fn new(client: Client) -> Self {
         Self {
             client,
@@ -95,6 +100,7 @@ impl MinecraftLanguageServer {
 
     async fn publish_diagnostic(&self, diagnostics: Diagnostics) {
         for (uri, diagnostics) in diagnostics {
+            // TODO: Deduplicate identical diagnostics (in file included multiple times, merging the "from file..." parts. also deduplicate that since we can include the same file multiple times in one shader)
             self.client.publish_diagnostics(uri, diagnostics, None).await;
         }
     }
@@ -159,6 +165,7 @@ impl LanguageServer for MinecraftLanguageServer {
         self.set_status_ready().await;
     }
 
+    #[inline]
     async fn shutdown(&self) -> Result<()> {
         Ok(())
     }
@@ -196,6 +203,7 @@ impl LanguageServer for MinecraftLanguageServer {
     }
 
     #[logging::with_trace_id]
+    #[inline]
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         self.open_file(params);
     }
@@ -222,6 +230,7 @@ impl LanguageServer for MinecraftLanguageServer {
     }
 
     #[logging::with_trace_id]
+    #[inline]
     async fn will_rename_files(&self, params: RenameFilesParams) -> Result<Option<WorkspaceEdit>> {
         Ok(Some(self.rename_files(params)))
     }
@@ -245,11 +254,13 @@ impl LanguageServer for MinecraftLanguageServer {
     }
 
     #[logging::with_trace_id]
+    #[inline]
     async fn references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
         Ok(self.find_references(params))
     }
 
     #[logging::with_trace_id]
+    #[inline]
     async fn document_symbol(&self, params: DocumentSymbolParams) -> Result<Option<DocumentSymbolResponse>> {
         Ok(self.list_symbols(params))
     }

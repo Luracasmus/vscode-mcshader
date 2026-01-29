@@ -1,12 +1,14 @@
 use std::result;
 
+use glslang::error::GlslangError;
+
 use super::*;
 
 impl MinecraftLanguageServer {
     pub(super) fn collect_memory(&self, workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>) {
         workspace_files.retain(|_file_path, workspace_file| {
             // Only delete file that both do not exist and no file includes it.
-            *workspace_file.file_type().borrow() != gl::INVALID_ENUM || !workspace_file.included_files().borrow().is_empty()
+            *workspace_file.file_type().borrow() != FileType::Invalid || !workspace_file.included_files().borrow().is_empty()
         });
     }
 
@@ -106,14 +108,11 @@ impl MinecraftLanguageServer {
         let validation_result = if hit_cache {
             None
         } else {
-            OPENGL_CONTEXT.validate_shader(*shader_file.0.file_type().borrow(), &shader_content)
+            crate::opengl::validate_shader(shader_file.0.file_type().borrow().to_shader_stage(), &shader_content)
         };
 
-        if let Some(compile_log) = validation_result {
-            info!(
-                "Compilation errors reported; shader file: {},\nerrors: \"\n{}\"",
-                shader_path_str, compile_log
-            );
+        if let Some(error) = validation_result {
+            info!("Compilation errors reported; shader file: {shader_path_str},\nerrors: \"\n{error}\"");
 
             // We have ensured files in file lists are unique, so each file.diagnostics will exist only once
             // parent_shaders itself will not changed during parsing, this should be safe.
@@ -132,64 +131,99 @@ impl MinecraftLanguageServer {
                 })
                 .collect::<HashMap<_, _>>();
 
-            compile_log
+            let message = match error {
+                GlslangError::PreprocessError(message) => message,
+                GlslangError::ParseError(message) => message,
+                GlslangError::MapIoError(message) => message,
+                GlslangError::LinkError(message) => message,
+                _ => {
+                    panic!();
+                    //warn!("Non-shader glslang error encountered");
+                    //String::new()
+                }
+            };
+
+            message
                 .split_terminator('\n')
                 .filter_map(|log_line| DIAGNOSTICS_REGEX.captures(log_line))
                 .for_each(|captures| {
-                    let mut msg = captures.name("output").unwrap().as_str().to_owned() + ", from file: ";
-                    msg += shader_path_str;
+                    let mut msg = captures.name("output").unwrap().as_str().trim().to_owned();
 
-                    let line = captures
-                        .name("linenum")
-                        .map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0))
-                        .saturating_sub(offset);
+                    if msg != "compilation terminated" {
+                        msg += ", from file: ";
+                        msg += shader_path_str;
 
-                    let (line_offset, line_end) = if let Some(shader_line) = shader_file.0.content().borrow().lines().nth(line as usize) {
-                        let line_offset = captures.name("lineoffset").map_or(0, |c| {
-                            c.as_str().parse::<u32>().map_or(0, |line_offset| {
-                                shader_line
-                                    .get(..(line_offset as usize))
-                                    .map_or(0, |slice| slice.encode_utf16().count() as u32)
-                            })
-                        });
+                        let line = captures
+                            .name("linenum")
+                            .map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0))
+                            .saturating_sub(offset);
 
-                        let line_end = shader_line
-                            .split_once("//")
-                            .map(|(prefix, _)| prefix)
-                            .or_else(|| shader_line.split_once("/*").map(|(prefix, _)| prefix))
-                            .map_or(u32::MAX, |prefix| prefix.trim_end().encode_utf16().count() as u32);
+                        // We assume the current file is the file with the errors. This isn't always true. TODO: fix
+                        let (line_offset, line_end) = if let Some(shader_line) = shader_file.0.content().borrow().lines().nth(line as usize)
+                        {
+                            let item = captures.name("item").unwrap().as_str();
+                            let item_len = item.len();
+                            let item_exists = item_len > 0;
 
-                        (line_offset, line_end)
-                    } else {
-                        (0, u32::MAX)
-                    };
+                            if item_exists && let Some(start_bytes) = shader_line.find(item) {
+                                let end_bytes = start_bytes + item_len;
 
-                    let severity =
-                        captures
-                            .name("severity")
-                            .map_or(DiagnosticSeverity::INFORMATION, |c| match c.as_str().to_lowercase().as_str() {
+                                (
+                                    shader_line[..start_bytes].encode_utf16().count() as u32,
+                                    shader_line[..end_bytes].encode_utf16().count() as u32,
+                                )
+                            } else {
+                                if item_exists {
+                                    msg = format!("'{item}': {msg}");
+                                }
+
+                                /*
+                                let mut line_end_utf16 = if item_len > 0 {
+                                    shader_line[..line_offset_bytes as usize + item_len].encode_utf16().count() as u32
+                                } else {
+                                    shader_line
+                                        .split_once("")
+                                        .map(|(prefix, _)| prefix)
+                                        .or_else(|| shader_line.split_once("").map(|(prefix, _)| prefix))
+                                        .map_or(u32::MAX, |prefix| prefix.trim_end().encode_utf16().count() as u32)
+                                };
+
+                                line_end_utf16 = item_len as u32;
+
+                                (line_offset_utf16, line_end_utf16)
+                                */
+                                (0, u32::MAX) // TODO
+                            }
+                        } else {
+                            (0, u32::MAX)
+                        };
+
+                        let severity = captures.name("severity").map_or(DiagnosticSeverity::INFORMATION, |c| {
+                            match c.as_str().to_lowercase().as_str() {
                                 "error" => DiagnosticSeverity::ERROR,
                                 "warning" => DiagnosticSeverity::WARNING,
                                 _ => DiagnosticSeverity::INFORMATION,
-                            });
+                            }
+                        });
 
-                    let diagnostic = Diagnostic {
-                        range: Range {
-                            start: Position {
-                                line,
-                                character: line_offset,
+                        let diagnostic = Diagnostic {
+                            range: Range {
+                                start: Position {
+                                    line,
+                                    character: line_offset,
+                                },
+                                end: Position { line, character: line_end },
                             },
-                            end: Position { line, character: line_end },
-                        },
-                        severity: Some(severity),
-                        source: Some("mcshader-glsl".to_owned()),
-                        message: msg,
-                        ..Default::default()
-                    };
+                            severity: Some(severity),
+                            source: Some("mcshader-glsl".to_owned()),
+                            message: msg,
+                            ..Default::default()
+                        };
 
-                    let index = captures.name("filepath").unwrap();
-                    if let Some(diagnostics) = diagnostic_pointers.get_mut(index.as_str()) {
-                        unsafe { diagnostics.as_mut().unwrap().push(diagnostic) };
+                        let index = captures.name("filepath").unwrap();
+                        if let Some(diagnostics) = diagnostic_pointers.get_mut(index.as_str()) {
+                            unsafe { diagnostics.as_mut().unwrap().push(diagnostic) };
+                        }
                     }
                 });
         } else {
@@ -213,7 +247,7 @@ impl MinecraftLanguageServer {
 
     pub(super) fn lint_temp_file(&self, temp_file: &TempFile, file_path: &Path, url: Url, temp_lint: bool) -> Diagnostics {
         let diagnostics = if let Some((mut source, version)) = temp_file.merge_self(file_path) {
-            let file_type = *temp_file.file_type().borrow();
+            let file_type = temp_file.file_type().borrow();
             let offset = preprocess_shader(&mut source, version, temp_file.shader_pack().debug);
 
             let mut cache = temp_file.cache().borrow_mut();
@@ -223,69 +257,69 @@ impl MinecraftLanguageServer {
             let validation_result = if hit_cache {
                 None
             } else {
-                OPENGL_CONTEXT.validate_shader(file_type, &source)
+                crate::opengl::validate_shader(file_type.to_shader_stage(), &source)
             };
             if let Some(compile_log) = validation_result {
                 info!(
-                    "Compilation errors reported; shader file: {},\nerrors: \"\n{}\"",
+                    "Compilation errors reported; shader file: {},\nerrors: \"\n{compile_log}\"",
                     file_path.to_str().unwrap(),
-                    compile_log
                 );
-                compile_log
-                    .split_terminator('\n')
-                    .filter_map(|log_line| DIAGNOSTICS_REGEX.captures(log_line))
-                    .filter(|captures| captures.name("filepath").unwrap().as_str() == "0")
-                    .map(|captures| {
-                        let msg = captures.name("output").unwrap().as_str().to_owned();
+                /*compile_log
+                .split_terminator('\n')
+                .filter_map(|log_line| DIAGNOSTICS_REGEX.captures(log_line))
+                .filter(|captures| captures.name("filepath").unwrap().as_str() == "0")
+                .map(|captures| {
+                    let msg = captures.name("output").unwrap().as_str().to_owned();
 
-                        let line = captures
-                            .name("linenum")
-                            .map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0))
-                            .saturating_sub(offset);
+                    let line = captures
+                        .name("linenum")
+                        .map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0))
+                        .saturating_sub(offset);
 
-                        let (line_offset, line_end) = if let Some(shader_line) = temp_file.content().borrow().lines().nth(line as usize) {
-                            let line_offset = captures.name("lineoffset").map_or(0, |c| {
-                                c.as_str().parse::<u32>().map_or(0, |line_offset| {
-                                    shader_line
-                                        .get(..(line_offset as usize))
-                                        .map_or(0, |slice| slice.encode_utf16().count() as u32)
-                                })
-                            });
-
-                            let line_end = shader_line
-                                .split_once("//")
-                                .map(|(prefix, _)| prefix)
-                                .or_else(|| shader_line.split_once("/*").map(|(prefix, _)| prefix))
-                                .map_or(u32::MAX, |prefix| prefix.trim_end().encode_utf16().count() as u32);
-
-                            (line_offset, line_end)
-                        } else {
-                            (0, u32::MAX)
-                        };
-
-                        let severity = captures.name("severity").map_or(DiagnosticSeverity::INFORMATION, |c| {
-                            match c.as_str().to_lowercase().as_str() {
-                                "error" => DiagnosticSeverity::ERROR,
-                                "warning" => DiagnosticSeverity::WARNING,
-                                _ => DiagnosticSeverity::INFORMATION,
-                            }
+                    let (line_offset, line_end) = if let Some(shader_line) = temp_file.content().borrow().lines().nth(line as usize) {
+                        let line_offset = captures.name("lineoffset").map_or(0, |c| {
+                            c.as_str().parse::<u32>().map_or(0, |line_offset| {
+                                shader_line
+                                    .get(..(line_offset as usize))
+                                    .map_or(0, |slice| slice.encode_utf16().count() as u32)
+                            })
                         });
 
-                        Diagnostic {
-                            range: Range {
-                                start: Position {
-                                    line,
-                                    character: line_offset,
-                                },
-                                end: Position { line, character: line_end },
-                            },
-                            severity: Some(severity),
-                            source: Some("mcshader-glsl".to_owned()),
-                            message: msg,
-                            ..Default::default()
+                        let line_end = shader_line
+                            .split_once("")
+                            .map(|(prefix, _)| prefix)
+                            .or_else(|| shader_line.split_once("").map(|(prefix, _)| prefix))
+                            .map_or(u32::MAX, |prefix| prefix.trim_end().encode_utf16().count() as u32);
+
+                        (line_offset, line_end)
+                    } else {
+                        (0, u32::MAX)
+                    };
+
+                    let severity = captures.name("severity").map_or(DiagnosticSeverity::INFORMATION, |c| {
+                        match c.as_str().to_lowercase().as_str() {
+                            "error" => DiagnosticSeverity::ERROR,
+                            "warning" => DiagnosticSeverity::WARNING,
+                            _ => DiagnosticSeverity::INFORMATION,
                         }
-                    })
-                    .collect::<Vec<_>>()
+                    });
+
+                    Diagnostic {
+                        range: Range {
+                            start: Position {
+                                line,
+                                character: line_offset,
+                            },
+                            end: Position { line, character: line_end },
+                        },
+                        severity: Some(severity),
+                        source: Some("mcshader-glsl".to_owned()),
+                        message: msg,
+                        ..Default::default()
+                    }
+                })
+                .collect::<Vec<_>>()*/
+                vec![]
             } else {
                 if !hit_cache {
                     cache.insert(&source);

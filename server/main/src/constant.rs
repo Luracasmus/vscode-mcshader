@@ -4,7 +4,6 @@ use hashbrown::{HashMap, HashSet};
 use regex::Regex;
 
 use crate::commands::*;
-use crate::opengl::OpenGlContext;
 
 pub static BASIC_EXTENSIONS: LazyLock<HashSet<Box<str>>> = LazyLock::new(|| {
     HashSet::from([
@@ -32,22 +31,8 @@ pub static RE_MACRO_PARSER_TEMP: LazyLock<Regex> =
 pub static RE_MACRO_VERSION: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^[ \f\t\v]*#\s*version[ \f\t\v]+(\d+)([ \f\t\v]+[a-z]+)?").unwrap());
 pub static RE_COMMENT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"/[/*]|\*/|\\\r?$").unwrap());
-pub static OPENGL_CONTEXT: LazyLock<OpenGlContext> = LazyLock::new(OpenGlContext::new);
 pub static DIAGNOSTICS_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    match OPENGL_CONTEXT.vendor() {
-        "NVIDIA Corporation" => {
-            Regex::new(r"^(?P<filepath>\d+)\((?P<linenum>\d+)\) : (?P<severity>error|warning) [A-C]\d+: (?P<output>.+)")
-        }
-        #[cfg(target_os = "linux")]
-        "AMD" => Regex::new(
-            // We assume RadeonSI.
-            r"^(?P<filepath>\d+)\:(?P<linenum>\d+)\((?P<lineoffset>\d+)\): (?P<severity>error|warning): (?P<output>.+)",
-        ),
-        _ => Regex::new(
-            r#"^(?P<severity>ERROR|WARNING): (?P<filepath>[^?<>*|"\n]+):(?P<linenum>\d+): (?:'.*' :|[a-z]+\(#\d+\)) +(?P<output>.+)$"#,
-        ),
-    }
-    .unwrap()
+    Regex::new(r#"^(?P<severity>ERROR|WARNING): (?P<filepath>\d+):(?P<linenum>\d+): '(?P<item>.*)' : (?P<output>.+)$"#).unwrap()
 });
 pub static IRIS_MACROS: LazyLock<Box<str>> = LazyLock::new(|| {
     let mut iris_macros = String::from(
@@ -59,8 +44,10 @@ pub static IRIS_MACROS: LazyLock<Box<str>> = LazyLock::new(|| {
     #define IRIS_VERSION 11004
     #define IRIS_HAS_CONNECTED_TEXTURES
     #define MC_MIPMAP_LEVEL 4
-    #define MC_GL_VERSION 320
-    #define MC_GLSL_VERSION 150
+    #define MC_GL_VERSION 450
+    #define MC_GLSL_VERSION 330
+    #define MC_GL_VENDOR_OTHER
+    #define MC_GL_RENDERER_OTHER
     #define MC_NORMAL_MAP
     #define MC_SPECULAR_MAP
     #define MC_RENDER_QUALITY 1.0
@@ -119,44 +106,6 @@ pub static IRIS_MACROS: LazyLock<Box<str>> = LazyLock::new(|| {
     pub const IRIS_OS_MACRO: &str = "#define MC_OS_MAC\n";
 
     iris_macros += IRIS_OS_MACRO;
-
-    let vendor = OPENGL_CONTEXT.vendor().to_ascii_lowercase();
-
-    // Match Iris behavior.
-    iris_macros += if vendor.starts_with("ati") {
-        "#define MC_GL_VENDOR_ATI\n"
-    } else if vendor.starts_with("intel") {
-        "#define MC_GL_VENDOR_INTEL\n"
-    } else if vendor.starts_with("nvidia") {
-        "#define MC_GL_VENDOR_NVIDIA\n"
-    } else if vendor.starts_with("amd") {
-        "#define MC_GL_VENDOR_AMD\n"
-    } else if vendor.starts_with("x.org") {
-        "#define MC_GL_VENDOR_XORG\n"
-    } else {
-        "#define MC_GL_VENDOR_OTHER\n"
-    };
-
-    let renderer = OPENGL_CONTEXT.renderer().to_ascii_lowercase();
-
-    // Match Iris behavior.
-    iris_macros += if renderer.starts_with("amd") || renderer.starts_with("ati") || renderer.starts_with("radeon") {
-        "#define MC_GL_RENDERER_RADEON\n"
-    } else if renderer.starts_with("gallium") {
-        "#define MC_GL_RENDERER_GALLIUM\n"
-    } else if renderer.starts_with("intel") {
-        "#define MC_GL_RENDERER_INTEL\n"
-    } else if renderer.starts_with("geforce") || renderer.starts_with("nvidia") {
-        "#define MC_GL_RENDERER_GEFORCE\n"
-    } else if renderer.starts_with("quadro") || renderer.starts_with("nvs") {
-        "#define MC_GL_RENDERER_QUADRO\n"
-    } else if renderer.starts_with("mesa") {
-        "#define MC_GL_RENDERER_MESA\n"
-    } else if renderer.starts_with("apple") {
-        "#define MC_GL_RENDERER_APPLE\n"
-    } else {
-        "#define MC_GL_RENDERER_OTHER\n"
-    };
 
     iris_macros.into_boxed_str()
 });
