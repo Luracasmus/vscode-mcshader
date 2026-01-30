@@ -8,7 +8,7 @@ impl MinecraftLanguageServer {
         let mut parser = server_data.tree_sitter_parser.borrow_mut();
         let mut workspace_files = server_data.workspace_files.borrow_mut();
         let mut temp_files = server_data.temp_files.borrow_mut();
-        let temp_lint = server_data.temp_lint.borrow();
+        let temp_lint = server_data.temp_lint;
 
         let diagnostics = if let Some((file_path, workspace_file)) = workspace_files.get_key_value(&file_path) {
             workspace_file.apply_edit(changes, &mut parser);

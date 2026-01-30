@@ -7,7 +7,7 @@ impl MinecraftLanguageServer {
         let server_data = self.server_data.lock().unwrap();
         let workspace_files = server_data.workspace_files.borrow();
         let temp_files = server_data.temp_files.borrow();
-        let temp_lint = server_data.temp_lint.borrow();
+        let temp_lint = server_data.temp_lint;
 
         let (include_links, diagnostics) = if let Some(workspace_file) = workspace_files.get(&file_path) {
             let shader_files = workspace_file.parent_shaders().borrow();
@@ -21,7 +21,7 @@ impl MinecraftLanguageServer {
             let temp_file = temp_files.get(&file_path)?;
             (
                 temp_file.include_links(),
-                self.lint_temp_file(temp_file, &file_path, url, *temp_lint),
+                self.lint_temp_file(temp_file, &file_path, url, temp_lint),
             )
         };
 

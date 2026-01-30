@@ -9,7 +9,7 @@ impl MinecraftLanguageServer {
         let mut workspace_files = server_data.workspace_files.borrow_mut();
         let mut temp_files = server_data.temp_files.borrow_mut();
         let shader_packs = server_data.shader_packs.borrow();
-        let extensions = server_data.extensions.borrow();
+        let extensions = &server_data.extensions;
 
         let mut updated_shaders = HashMap::new();
         let mut update_list = HashMap::new();

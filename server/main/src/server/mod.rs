@@ -39,8 +39,8 @@ pub type Diagnostics = HashMap<Url, Vec<Diagnostic>>;
 /// Everything mutable in this struct.
 /// By sending the Mutex of server data to sync functions, we can handle it like single thread
 pub struct ServerData {
-    temp_lint: RefCell<bool>,
-    extensions: RefCell<HashSet<Box<str>>>,
+    temp_lint: bool,
+    extensions: HashSet<Box<str>>,
     shader_packs: RefCell<HashSet<Rc<ShaderPack>>>,
     workspace_files: RefCell<HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>>,
     temp_files: RefCell<HashMap<PathBuf, TempFile>>,
@@ -53,8 +53,8 @@ impl ServerData {
         let mut tree_sitter_parser = Parser::new();
         tree_sitter_parser.set_language(&tree_sitter_glsl::LANGUAGE_GLSL.into()).unwrap();
         Self {
-            temp_lint: RefCell::new(false),
-            extensions: RefCell::new(BASIC_EXTENSIONS.clone()),
+            temp_lint: false,
+            extensions: BASIC_EXTENSIONS.clone(),
             shader_packs: RefCell::new(HashSet::new()),
             workspace_files: RefCell::new(HashMap::new()),
             temp_files: RefCell::new(HashMap::new()),
@@ -197,9 +197,9 @@ impl LanguageServer for MinecraftLanguageServer {
 
         config.extra_extension.extend(BASIC_EXTENSIONS.clone());
 
-        let server_data = self.server_data.lock().unwrap();
-        *server_data.extensions.borrow_mut() = config.extra_extension;
-        *server_data.temp_lint.borrow_mut() = config.temp_lint;
+        let mut server_data = self.server_data.lock().unwrap();
+        server_data.extensions = config.extra_extension;
+        server_data.temp_lint = config.temp_lint;
     }
 
     #[logging::with_trace_id]
