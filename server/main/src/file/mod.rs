@@ -6,11 +6,11 @@ use std::{
     rc::Rc,
 };
 
-use glslang::ShaderStage;
 use hashbrown::HashMap;
 use itoa::Buffer;
 use logging::{error, warn};
 use regex::Matches;
+use shaderc::ShaderKind;
 use tower_lsp::lsp_types::*;
 use tree_sitter::{InputEdit, Parser, Point, Tree};
 
@@ -169,30 +169,31 @@ pub fn preprocess_shader(shader_content: &mut String, mut version: String, is_de
         // Ignore the possible multi-line comment start. It will be added on its original place later.
         version.truncate(capture.get(0).unwrap().end());
     }
+    version = version.replace("compatibility", "core");
     version.push('\n');
 
-    if !is_debug {
+    /*if !is_debug {
         version += &IRIS_MACROS;
-    }
+    }*/
     version += shader_content;
     *shader_content = version;
 
     offset
 }
 
-#[derive(Copy, Clone, Hash, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum FileType {
     None,
     Invalid,
-    Shader(ShaderStage),
+    Shader(ShaderKind),
 }
 
 impl FileType {
     #[must_use]
-    pub const fn to_shader_stage(self) -> ShaderStage {
-        let Self::Shader(shader_stage) = self else { panic!() };
+    pub const fn to_shader_kind(self) -> ShaderKind {
+        let Self::Shader(shader_kind) = self else { panic!() };
 
-        shader_stage
+        shader_kind
     }
 }
 

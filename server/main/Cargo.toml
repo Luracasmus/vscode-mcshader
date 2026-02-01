@@ -21,8 +21,8 @@ url = "2.5.8"
 
 logging = { path = "../logging" }
 logging_macro = { path = "../logging_macro" }
-# glslang = "0.6.2"
-glslang = { git = "https://github.com/Luracasmus/glslang-rs.git" }
+shaderc = "0.10.1"
+#shaderc = { version = "0.10.1", features = ["build-from-source"] }
 
 [lints]
 workspace = true

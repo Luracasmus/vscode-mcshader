@@ -1,4 +1,4 @@
-use glslang::ShaderStage;
+use shaderc::ShaderKind;
 
 use super::*;
 
@@ -64,12 +64,12 @@ impl MinecraftLanguageServer {
             } else {
                 let is_valid_shader = self.is_valid_shader(&shader_packs, &file_path).map(|pack_path| {
                     let shader_type = match file_path.extension() {
-                        Some(ext) if ext == "csh" => ShaderStage::Compute,
-                        Some(ext) if ext == "vsh" => ShaderStage::Vertex,
-                        Some(ext) if ext == "gsh" => ShaderStage::Geometry,
-                        Some(ext) if ext == "fsh" => ShaderStage::Fragment,
-                        Some(ext) if ext == "tcs" => ShaderStage::TesselationControl,
-                        Some(ext) if ext == "tes" => ShaderStage::TesselationEvaluation,
+                        Some(ext) if ext == "csh" => ShaderKind::Compute,
+                        Some(ext) if ext == "vsh" => ShaderKind::Vertex,
+                        Some(ext) if ext == "gsh" => ShaderKind::Geometry,
+                        Some(ext) if ext == "fsh" => ShaderKind::Fragment,
+                        Some(ext) if ext == "tcs" => ShaderKind::TessControl,
+                        Some(ext) if ext == "tes" => ShaderKind::TessEvaluation,
                         // This will never be used since we have ensured the extension through basic shaders regex.
                         _ => unreachable!(),
                     };

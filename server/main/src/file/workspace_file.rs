@@ -1,4 +1,4 @@
-use glslang::ShaderStage;
+use shaderc::ShaderKind;
 
 use super::*;
 
@@ -19,9 +19,9 @@ impl WorkspaceFile {
         &self.including_files
     }
 
-    pub fn new(parser: &mut Parser, file_type: ShaderStage, pack_path: &Rc<ShaderPack>) -> Self {
+    pub fn new(parser: &mut Parser, shader_kind: ShaderKind, pack_path: &Rc<ShaderPack>) -> Self {
         Self {
-            file_type: RefCell::new(FileType::Shader(file_type)),
+            file_type: RefCell::new(FileType::Shader(shader_kind)),
             shader_pack: pack_path.clone(),
             content: RefCell::new(String::new()),
             version: RefCell::new(None),
@@ -219,12 +219,12 @@ impl WorkspaceFile {
         pack_path: &Rc<ShaderPack>, file_path: PathBuf,
     ) {
         let shader_stage = match file_path.extension() {
-            Some(ext) if ext == "csh" => ShaderStage::Compute,
-            Some(ext) if ext == "vsh" => ShaderStage::Vertex,
-            Some(ext) if ext == "gsh" => ShaderStage::Geometry,
-            Some(ext) if ext == "fsh" => ShaderStage::Fragment,
-            Some(ext) if ext == "tcs" => ShaderStage::TesselationControl,
-            Some(ext) if ext == "tes" => ShaderStage::TesselationEvaluation,
+            Some(ext) if ext == "csh" => ShaderKind::Compute,
+            Some(ext) if ext == "vsh" => ShaderKind::Vertex,
+            Some(ext) if ext == "gsh" => ShaderKind::Geometry,
+            Some(ext) if ext == "fsh" => ShaderKind::Fragment,
+            Some(ext) if ext == "tcs" => ShaderKind::TessControl,
+            Some(ext) if ext == "tes" => ShaderKind::TessEvaluation,
             // This will never be used since we have ensured the extension through basic shaders regex.
             _ => unreachable!(),
         };

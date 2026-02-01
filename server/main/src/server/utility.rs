@@ -1,7 +1,5 @@
 use std::result;
 
-use glslang::error::GlslangError;
-
 use super::*;
 
 impl MinecraftLanguageServer {
@@ -108,7 +106,7 @@ impl MinecraftLanguageServer {
         let validation_result = if hit_cache {
             None
         } else {
-            crate::opengl::validate_shader(shader_file.0.file_type().borrow().to_shader_stage(), &shader_content)
+            crate::opengl::validate_shader(shader_file.0.file_type().borrow().to_shader_kind(), &shader_content)
         };
 
         if let Some(error) = validation_result {
@@ -132,10 +130,8 @@ impl MinecraftLanguageServer {
                 .collect::<HashMap<_, _>>();
 
             let message = match error {
-                GlslangError::PreprocessError(message) => message,
-                GlslangError::ParseError(message) => message,
-                GlslangError::MapIoError(message) => message,
-                GlslangError::LinkError(message) => message,
+                shaderc::Error::CompilationError(_, message) => message, // TODO: Handle the error code.
+                shaderc::Error::ParseError(message) => message,
                 _ => {
                     panic!();
                     //warn!("Non-shader glslang error encountered");
@@ -248,7 +244,7 @@ impl MinecraftLanguageServer {
     pub(super) fn lint_temp_file(&self, temp_file: &TempFile, file_path: &Path, url: Url, temp_lint: bool) -> Diagnostics {
         let diagnostics = if let Some((mut source, version)) = temp_file.merge_self(file_path) {
             let file_type = temp_file.file_type().borrow();
-            let offset = preprocess_shader(&mut source, version, temp_file.shader_pack().debug);
+            let offset = preprocess_shader(&mut source, version.clone(), temp_file.shader_pack().debug);
 
             let mut cache = temp_file.cache().borrow_mut();
             let cache = cache.as_mut().unwrap();
@@ -257,7 +253,7 @@ impl MinecraftLanguageServer {
             let validation_result = if hit_cache {
                 None
             } else {
-                crate::opengl::validate_shader(file_type.to_shader_stage(), &source)
+                crate::opengl::validate_shader(file_type.to_shader_kind(), &source)
             };
             if let Some(compile_log) = validation_result {
                 info!(
