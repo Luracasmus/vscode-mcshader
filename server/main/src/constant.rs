@@ -5,6 +5,9 @@ use regex::Regex;
 
 use crate::commands::*;
 
+/// In GLSL 1.50 and later, the offset is 1. We're forced to use at least 3.30+ in shaderc, so we don't need to detect this at runtime.
+pub const LINE_OFFSET: u32 = 1;
+
 pub static BASIC_EXTENSIONS: LazyLock<HashSet<Box<str>>> = LazyLock::new(|| {
     HashSet::from([
         Box::from("csh"),

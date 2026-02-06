@@ -37,14 +37,14 @@ impl Command for VirtualMerge {
                         &mut -1,
                         0,
                     );
-                    preprocess_shader(&mut content, version, workspace_file.shader_pack().debug);
+                    preprocess_shader(&mut content, version);
                     content
                 }
             }
         } else if let Some(temp_file) = temp_files.get(&file_path) {
             match temp_file.merge_self(&file_path) {
                 Some((mut temp_content, version)) => {
-                    preprocess_shader(&mut temp_content, version, temp_file.shader_pack().debug);
+                    preprocess_shader(&mut temp_content, version);
                     temp_content
                 }
                 None => return Err(LanguageServerError::not_shader_error()),

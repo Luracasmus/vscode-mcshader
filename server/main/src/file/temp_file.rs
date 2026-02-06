@@ -52,14 +52,10 @@ impl TempFile {
         let tree = parser.parse(&content, None).unwrap();
         let line_mapping = generate_line_mapping(&content);
         let pack_path = PathBuf::from(resource);
-        let debug = pack_path
-            .parent()
-            .and_then(|parent| parent.file_name())
-            .is_some_and(|name| name == "debug");
 
         let temp_file = Self {
             file_type: RefCell::new(file_type),
-            shader_pack: ShaderPack { path: pack_path, debug },
+            shader_pack: ShaderPack { path: pack_path },
             content: RefCell::new(content),
             version: RefCell::new(None),
             cache: RefCell::new(cache),

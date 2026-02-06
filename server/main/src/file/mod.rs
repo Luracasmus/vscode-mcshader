@@ -157,14 +157,15 @@ fn end_in_comment(index: usize, comment_matches: Matches<'_, '_>, in_comment: &m
     }
 }
 
-pub fn preprocess_shader(shader_content: &mut String, mut version: String, is_debug: bool) -> u32 {
-    let mut offset = 2;
-
+pub fn preprocess_shader(shader_content: &mut String, mut version: String) {
     // TODO: Patch `#extension` somehow so that it works like in Iris.
 
-    if let Some(capture) = RE_MACRO_VERSION.captures(&version) {
-        if capture.get(1).unwrap().as_str().parse::<u32>().unwrap() > 150 {
-            offset = 1;
+    if let Some(capture) = RE_MACRO_VERSION.captures(&version.clone()) {
+        let version_capture = capture.get(1).unwrap();
+
+        if version_capture.as_str().parse::<u32>().unwrap() < 330 {
+            let range = version_capture.range();
+            version.replace_range(range, "330"); // Patch up to 330 for shaderc.
         }
         // Ignore the possible multi-line comment start. It will be added on its original place later.
         version.truncate(capture.get(0).unwrap().end());
@@ -172,13 +173,8 @@ pub fn preprocess_shader(shader_content: &mut String, mut version: String, is_de
     version = version.replace("compatibility", "core");
     version.push('\n');
 
-    /*if !is_debug {
-        version += &IRIS_MACROS;
-    }*/
     version += shader_content;
     *shader_content = version;
-
-    offset
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -336,7 +332,6 @@ pub struct TempFile {
 #[derive(Clone)]
 pub struct ShaderPack {
     pub path: PathBuf,
-    pub debug: bool,
 }
 
 impl core::hash::Hash for ShaderPack {

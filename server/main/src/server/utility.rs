@@ -32,11 +32,8 @@ impl MinecraftLanguageServer {
         let file_name = curr_path.file_name().unwrap();
         if file_name == "shaders" {
             info!("Find shader pack {}", curr_path.to_str().unwrap());
-            let debug = curr_path
-                .parent()
-                .and_then(|parent| parent.file_name())
-                .is_some_and(|name| name == "debug");
-            shader_packs.push(Rc::new(ShaderPack { path: curr_path, debug }));
+
+            shader_packs.push(Rc::new(ShaderPack { path: curr_path }));
         } else if file_name.to_str().is_none_or(|name| !name.starts_with('.') || name == ".minecraft")
             && let Ok(dir) = curr_path.read_dir()
         {
@@ -96,7 +93,7 @@ impl MinecraftLanguageServer {
             &mut -1,
             0,
         );
-        let offset = preprocess_shader(&mut shader_content, version, shader_file.0.shader_pack().debug);
+        preprocess_shader(&mut shader_content, version);
 
         let shader_path_str = shader_path.to_str().unwrap();
 
@@ -152,7 +149,7 @@ impl MinecraftLanguageServer {
                         let line = captures
                             .name("linenum")
                             .map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0))
-                            .saturating_sub(offset);
+                            .saturating_sub(crate::constant::LINE_OFFSET);
 
                         // We assume the current file is the file with the errors. This isn't always true. TODO: fix
                         let (line_offset, line_end) = if let Some(shader_line) = shader_file.0.content().borrow().lines().nth(line as usize)
@@ -244,7 +241,8 @@ impl MinecraftLanguageServer {
     pub(super) fn lint_temp_file(&self, temp_file: &TempFile, file_path: &Path, url: Url, temp_lint: bool) -> Diagnostics {
         let diagnostics = if let Some((mut source, version)) = temp_file.merge_self(file_path) {
             let file_type = temp_file.file_type().borrow();
-            let offset = preprocess_shader(&mut source, version.clone(), temp_file.shader_pack().debug);
+
+            preprocess_shader(&mut source, version.clone());
 
             let mut cache = temp_file.cache().borrow_mut();
             let cache = cache.as_mut().unwrap();
@@ -270,7 +268,7 @@ impl MinecraftLanguageServer {
                     let line = captures
                         .name("linenum")
                         .map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0))
-                        .saturating_sub(offset);
+                        .saturating_sub(LINE_OFFSET);
 
                     let (line_offset, line_end) = if let Some(shader_line) = temp_file.content().borrow().lines().nth(line as usize) {
                         let line_offset = captures.name("lineoffset").map_or(0, |c| {
