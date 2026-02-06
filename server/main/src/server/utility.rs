@@ -100,11 +100,22 @@ impl MinecraftLanguageServer {
         let mut cache = shader_file.0.cache().borrow_mut();
         let cache = cache.as_mut().unwrap();
         let hit_cache = cache.check(&shader_content);
-        let validation_result = if hit_cache {
+        /*let validation_result = if hit_cache {
             None
         } else {
-            crate::opengl::validate_shader(shader_file.0.file_type().borrow().to_shader_kind(), &shader_content)
-        };
+            crate::opengl::validate_shader(
+                shader_file.0.file_type().borrow().to_shader_kind(),
+                &shader_content,
+                &shader_file.0.shader_pack().path,
+                shader_path,
+            )
+        };*/
+        let validation_result = crate::opengl::validate_shader(
+            shader_file.0.file_type().borrow().to_shader_kind(),
+            &shader_content,
+            &shader_file.0.shader_pack().path,
+            shader_path,
+        );
 
         if let Some(error) = validation_result {
             info!("Compilation errors reported; shader file: {shader_path_str},\nerrors: \"\n{error}\"");
@@ -222,8 +233,9 @@ impl MinecraftLanguageServer {
         } else {
             if !hit_cache {
                 cache.insert(&shader_content);
+                info!("Compilation reported no errors"; "shader file" => shader_path_str);
             }
-            info!("Compilation reported no errors"; "shader file" => shader_path_str);
+
             file_list.into_iter().for_each(|(file_path, (_, workspace_file))| {
                 workspace_file
                     .parent_shaders()
@@ -239,6 +251,8 @@ impl MinecraftLanguageServer {
     }
 
     pub(super) fn lint_temp_file(&self, temp_file: &TempFile, file_path: &Path, url: Url, temp_lint: bool) -> Diagnostics {
+        warn!("awdwdwad");
+
         let diagnostics = if let Some((mut source, version)) = temp_file.merge_self(file_path) {
             let file_type = temp_file.file_type().borrow();
 
@@ -248,10 +262,11 @@ impl MinecraftLanguageServer {
             let cache = cache.as_mut().unwrap();
             let hit_cache = cache.check(&source);
 
-            let validation_result = if hit_cache {
+            let validation_result: Option<shaderc::Error> = if hit_cache {
                 None
             } else {
-                crate::opengl::validate_shader(file_type.to_shader_kind(), &source)
+                //crate::opengl::validate_shader(file_type.to_shader_kind(), &source, shader_path)
+                None
             };
             if let Some(compile_log) = validation_result {
                 info!(

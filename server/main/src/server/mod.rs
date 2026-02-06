@@ -67,12 +67,6 @@ impl ServerData {
     pub const fn workspace_files(&self) -> &RefCell<HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>> {
         &self.workspace_files
     }
-
-    #[inline]
-    #[must_use]
-    pub const fn temp_files(&self) -> &RefCell<HashMap<PathBuf, TempFile>> {
-        &self.temp_files
-    }
 }
 
 // We will not send cloned Rc data to solution outside the mutex lock

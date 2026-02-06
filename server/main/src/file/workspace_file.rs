@@ -361,7 +361,7 @@ impl WorkspaceFile {
                 .iter()
                 .filter(|(_, _, _, _, include_file)| *include_file.file_type.borrow() != FileType::Invalid)
                 .for_each(|(line, _, _, include_path, include_file)| {
-                    let start = line_mapping.get(*line).unwrap();
+                    /*let start = line_mapping.get(*line).unwrap();
                     let end = line_mapping.get(line + 1).unwrap();
 
                     push_str_without_ignored(
@@ -373,10 +373,10 @@ impl WorkspaceFile {
                         &mut ignored_lines,
                         &line_mapping,
                     );
-                    start_index = end - 1;
+                    start_index = end - 1;*/
 
                     include_file.merge_file(file_list, include_file, shader_content, version, include_path, file_id, depth);
-                    push_line_macro(shader_content, line + 2, &curr_file_id, file_name);
+                    //push_line_macro(shader_content, line + 2, &curr_file_id, file_name);
                 });
         }
         push_str_without_ignored(

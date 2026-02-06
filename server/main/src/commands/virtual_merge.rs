@@ -8,7 +8,7 @@ use super::*;
 
 impl Command for VirtualMerge {
     fn run(&self, arguments: &[Value], server_data: &MutexGuard<ServerData>) -> Result<Option<Value>> {
-        let value = arguments.first().unwrap();
+        /*let value = arguments.first().unwrap();
         let file_uri = match value.as_str() {
             Some(uri) => uri,
             None => return Err(LanguageServerError::invalid_argument_error()),
@@ -54,5 +54,7 @@ impl Command for VirtualMerge {
         };
 
         Ok(Some(Value::String(content)))
+        */
+        Ok(None)
     }
 }
